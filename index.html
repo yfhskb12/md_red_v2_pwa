@@ -1,0 +1,355 @@
+
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Markdown Redactor 2.0</title>
+    
+    <!-- PWA & Mobile Experience: relative paths used -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Markdown Redactor 2.0">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js Themes - GitHub Flavored -->
+    <link id="hljs-dark-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link id="hljs-light-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" disabled>
+    <link id="hljs-solarized-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/solarized-dark.min.css" disabled>
+    <link id="hljs-nord-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/nord.min.css" disabled>
+    <link id="hljs-dracula-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/dracula.min.css" disabled>
+    <link id="hljs-monokai-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css" disabled>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* GitHub Dark (Default) */
+        :root, [data-theme='dark'] { 
+            --color-background: #0d1117;
+            --color-background-secondary: #161b22;
+            --color-background-tertiary: #21262d;
+            --color-background-muted: #0d1117;
+            --color-text-primary: #c9d1d9;
+            --color-text-secondary: #8b949e;
+            --color-text-muted: #6e7681;
+            --color-border-color: #30363d;
+            --color-prose-code-bg: #161b22;
+            --color-prose-quote-bg: #161b22;
+            --color-prose-quote-border: #1f6feb;
+            --color-prose-pre-bg: #161b22;
+            --color-prose-pre-color: #c9d1d9;
+            --color-accent: #1f6feb;
+            --color-accent-hover: #388bfd;
+            --color-accent-text: #ffffff;
+            --color-accent-soft-bg: #1f6feb26;
+            --color-accent-soft-text: #58a6ff;
+            --color-danger-text: #f85149;
+            --color-danger-soft-bg: #da363326;
+            --color-success: #2ea043;
+            --color-warning: #d29922;
+            --caret-color: #c9d1d9;
+        }
+        
+        /* GitHub Light */
+        [data-theme='light'] {
+            --color-background: #ffffff;
+            --color-background-secondary: #f6f8fa;
+            --color-background-tertiary: #eaeef2;
+            --color-background-muted: #f6f8fa;
+            --color-text-primary: #24292f;
+            --color-text-secondary: #57606a;
+            --color-text-muted: #8c959f;
+            --color-border-color: #d0d7de;
+            --color-prose-code-bg: #f6f8fa;
+            --color-prose-quote-bg: #f6f8fa;
+            --color-prose-quote-border: #0969da;
+            --color-prose-pre-bg: #f6f8fa;
+            --color-prose-pre-color: #24292f;
+            --color-accent: #0969da;
+            --color-accent-hover: #218bff;
+            --color-accent-text: #ffffff;
+            --color-accent-soft-bg: #ddf4ff;
+            --color-accent-soft-text: #0969da;
+            --color-danger-text: #cf222e;
+            --color-danger-soft-bg: #ffebe9;
+            --color-success: #1a7f37;
+            --color-warning: #9a6700;
+            --caret-color: #24292f;
+        }
+
+        /* Other themes */
+        [data-theme='solarized'] {
+            --color-background: #002b36;
+            --color-background-secondary: #073642;
+            --color-background-tertiary: #586e75;
+            --color-background-muted: #073642;
+            --color-text-primary: #eee8d5;
+            --color-text-secondary: #93a1a1;
+            --color-text-muted: #839496;
+            --color-border-color: #0d4654;
+            --color-prose-code-bg: #073642;
+            --color-prose-quote-bg: #073642;
+            --color-prose-quote-border: #268bd2;
+            --color-prose-pre-bg: #002b36;
+            --color-prose-pre-color: #839496;
+            --color-accent: #268bd2;
+            --color-accent-hover: #6c71c4;
+            --color-accent-text: #002b36;
+            --color-accent-soft-bg: #2aa198;
+            --color-accent-soft-text: #002b36;
+            --color-danger-text: #dc322f;
+            --color-danger-soft-bg: #3e2723;
+            --color-success: #859900;
+            --color-warning: #b58900;
+            --caret-color: #eee8d5;
+        }
+        
+        [data-theme='nord'] {
+             --color-background: #2e3440;
+             --color-background-secondary: #3b4252;
+             --color-background-tertiary: #434c5e;
+             --color-background-muted: #3b4252;
+             --color-text-primary: #eceff4;
+             --color-text-secondary: #d8dee9;
+             --color-text-muted: #a3be8c;
+             --color-border-color: #4c566a;
+             --color-prose-code-bg: #434c5e;
+             --color-prose-quote-bg: #3b4252;
+             --color-prose-quote-border: #88c0d0;
+             --color-prose-pre-bg: #2e3440;
+             --color-prose-pre-color: #d8dee9;
+             --color-accent: #88c0d0;
+             --color-accent-hover: #81a1c1;
+             --color-accent-text: #2e3440;
+             --color-accent-soft-bg: #8fbcbb;
+             --color-accent-soft-text: #2e3440;
+             --color-danger-text: #bf616a;
+             --color-danger-soft-bg: #4d2e32;
+             --color-success: #a3be8c;
+             --color-warning: #ebcb8b;
+             --caret-color: #eceff4;
+        }
+
+        [data-theme='dracula'] {
+            --color-background: #282a36;
+            --color-background-secondary: #1e1f29;
+            --color-background-tertiary: #44475a;
+            --color-background-muted: #383a59;
+            --color-text-primary: #f8f8f2;
+            --color-text-secondary: #bd93f9;
+            --color-text-muted: #6272a4;
+            --color-border-color: #191a21;
+            --color-prose-code-bg: #44475a;
+            --color-prose-quote-bg: #383a59;
+            --color-prose-quote-border: #ff79c9;
+            --color-prose-pre-bg: #282a36;
+            --color-prose-pre-color: #f8f8f2;
+            --color-accent: #bd93f9;
+            --color-accent-hover: #ff79c9;
+            --color-accent-text: #f8f8f2;
+            --color-accent-soft-bg: #44475a;
+            --color-accent-soft-text: #f8f8f2;
+            --color-danger-text: #ff5555;
+            --color-danger-soft-bg: #522d35;
+            --color-success: #50fa7b;
+            --color-warning: #f1fa8c;
+            --caret-color: #f8f8f2;
+        }
+
+        [data-theme='monokai'] {
+            --color-background: #272822;
+            --color-background-secondary: #1e1e1e;
+            --color-background-tertiary: #49483e;
+            --color-background-muted: #3e3d32;
+            --color-text-primary: #f8f8f2;
+            --color-text-secondary: #e6db74;
+            --color-text-muted: #75715e;
+            --color-border-color: #1e1e1e;
+            --color-prose-code-bg: #49483e;
+            --color-prose-quote-bg: #3e3d32;
+            --color-prose-quote-border: #a6e22e;
+            --color-prose-pre-bg: #272822;
+            --color-prose-pre-color: #f8f8f2;
+            --color-accent: #f92672;
+            --color-accent-hover: #fd971f;
+            --color-accent-text: #f8f8f2;
+            --color-accent-soft-bg: #49483e;
+            --color-accent-soft-text: #f8f8f2;
+            --color-danger-text: #f92672;
+            --color-danger-soft-bg: #562d3a;
+            --color-success: #a6e22e;
+            --color-warning: #fd971f;
+            --caret-color: #f8f8f2;
+        }
+
+        /* Preview / Prose Overrides for Tailwind Typography */
+        .prose {
+            max-width: none !important;
+            color: var(--color-text-secondary) !important;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { 
+            color: var(--color-text-primary) !important; 
+        }
+        .prose strong { color: var(--color-text-primary) !important; }
+        .prose a { 
+            color: var(--color-accent) !important; 
+            text-decoration: none;
+        }
+        .prose a:hover { text-decoration: underline; }
+        .prose code { 
+            background: var(--color-prose-code-bg); 
+            color: var(--color-text-primary) !important; 
+            padding: 0.2rem 0.4rem; 
+            border-radius: 4px; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-weight: 500 !important;
+        }
+        .prose pre {
+            background-color: var(--color-prose-pre-bg) !important;
+            color: var(--color-prose-pre-color) !important;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        .prose pre code {
+            background: transparent !important;
+            padding: 0 !important;
+            color: inherit !important;
+            font-weight: inherit !important;
+        }
+        .prose blockquote { 
+            border-left-color: var(--color-prose-quote-border) !important; 
+            background: var(--color-prose-quote-bg); 
+            padding: 0.5rem 1rem; 
+            border-radius: 0 0.5rem 0.5rem 0; 
+            font-style: italic; 
+            color: var(--color-text-muted) !important;
+        }
+        .prose table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+        .prose th, .prose td { 
+            border: 1px solid var(--color-border-color); 
+            padding: 0.75rem; 
+        }
+        .prose th { 
+            background: var(--color-background-secondary); 
+            color: var(--color-text-primary) !important;
+        }
+        .prose img { 
+            border-radius: 0.5rem; 
+        }
+        .prose hr {
+            border-color: var(--color-border-color) !important;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--color-border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .fab-options { transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; }
+        
+        .hljs { background: transparent !important; padding: 0 !important; }
+
+        @media print {
+            body > #root > div > aside, 
+            body > #root > div > main > header,
+            body > #root > div > main > footer { display: none; }
+            main, main > div { height: auto !important; overflow: visible !important; display: block !important; }
+            #editor-area, #markdown-toolbar-desktop, .fab-container { display: none !important; }
+            #preview-area { display: block !important; width: 100% !important; border: none !important; height: auto !important; overflow: visible !important; flex: none !important; background-color: #fff !important; }
+            .prose {
+                --color-background: #fff !important;
+                --color-text-primary: #000 !important;
+                --color-text-secondary: #000 !important;
+                --color-accent: #000 !important;
+                --color-prose-code-bg: #f3f4f6 !important;
+                --color-prose-quote-bg: #f3f4f6 !important;
+                --color-prose-quote-border: #ccc !important;
+                --color-border-color: #ccc !important;
+            }
+            .prose * { color: #000 !important; }
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideInFromTop { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+        @keyframes slideInFromBottom { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .animate-in.fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-in.slide-in-from-right { animation: slideInFromRight 0.3s ease-out; }
+        .animate-in.slide-in-from-top-2 { animation: slideInFromTop 0.2s ease-out; }
+        .animate-in.slide-in-from-bottom-5 { animation: slideInFromBottom 0.3s ease-out; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "marked": "https://esm.sh/marked@^17.0.1",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "dompurify": "https://esm.sh/dompurify@^3.3.1",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4"
+  }
+}
+</script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: 'var(--color-background)',
+            'background-secondary': 'var(--color-background-secondary)',
+            'background-tertiary': 'var(--color-background-tertiary)',
+            'background-muted': 'var(--color-background-muted)',
+            'text-primary': 'var(--color-text-primary)',
+            'text-secondary': 'var(--color-text-secondary)',
+            'text-muted': 'var(--color-text-muted)',
+            'border-color': 'var(--color-border-color)',
+            'accent': 'var(--color-accent)',
+            'accent-hover': 'var(--color-accent-hover)',
+            'accent-text': 'var(--color-accent-text)',
+            'accent-soft-bg': 'var(--color-accent-soft-bg)',
+            'accent-soft-text': 'var(--color-accent-soft-text)',
+            'danger-text': 'var(--color-danger-text)',
+            'danger-soft-bg': 'var(--color-danger-soft-bg)',
+            'success': 'var(--color-success)',
+            'warning': 'var(--color-warning)',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-background text-text-primary overflow-hidden">
+    <div id="root"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          // Register with relative path to support subpath deployment
+          navigator.serviceWorker.register('sw.js').then(registration => {
+            console.log('SW registered on scope:', registration.scope);
+          }, err => {
+            console.warn('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
+    <script type="module" src="./index.tsx"></script>
+</body>
+</html>
