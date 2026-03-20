@@ -79,6 +79,17 @@ export interface GoogleUser {
     picture: string;
 }
 
+export interface BrowserFileWritable {
+  write: (data: string) => Promise<void>;
+  close: () => Promise<void>;
+}
+
+export interface BrowserFileHandle {
+  name: string;
+  getFile: () => Promise<File>;
+  createWritable: () => Promise<BrowserFileWritable>;
+}
+
 // Global Window Extension
 declare global {
   interface Window {
@@ -89,5 +100,7 @@ declare global {
       getLanguage: (name: string) => any;
       registerLanguage: (name: string, language: any) => void;
     };
+    showOpenFilePicker?: (options?: any) => Promise<BrowserFileHandle[]>;
+    showSaveFilePicker?: (options?: any) => Promise<BrowserFileHandle>;
   }
 }

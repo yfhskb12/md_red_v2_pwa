@@ -299,20 +299,23 @@ Get started by creating a new file using the buttons in the sidebar!`;
   }, []);
 
   const importFile = useCallback((name: string, content: string, driveFileId?: string) => {
+      const now = Date.now();
+      const docId = now.toString();
       const newDoc: Document = { 
-          id: Date.now().toString(), 
+          id: docId, 
           type: 'document', 
           parentId: null, 
           name, 
           content, 
-          updatedAt: Date.now(), 
-          versions: [{ id: `v${Date.now()}`, content, savedAt: Date.now() }],
+          updatedAt: now, 
+          versions: [{ id: `v${now}`, content, savedAt: now }],
           driveFileId,
       };
       setItems(prev => [newDoc, ...prev]);
       setStructureItems(prev => [newDoc, ...prev]);
       setActiveDocId(newDoc.id);
       setSaveStatus('saved');
+      return docId;
   }, []);
   
   const importFromGitHubRepo = useCallback((repo: GitHubRepo, contents: GitHubContent[]) => {

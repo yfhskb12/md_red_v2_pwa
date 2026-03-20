@@ -7,12 +7,12 @@
     <title>Markdown Redactor 2.0</title>
     
     <!-- PWA & Mobile Experience: relative paths used -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.webmanifest">
     <meta name="theme-color" content="#0d1117">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Markdown Redactor 2.0">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="./pwa-192x192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -338,18 +338,6 @@
 <body class="bg-background text-text-primary overflow-hidden">
     <div id="root"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          // Register with relative path to support subpath deployment
-          navigator.serviceWorker.register('sw.js').then(registration => {
-            console.log('SW registered on scope:', registration.scope);
-          }, err => {
-            console.warn('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
-    </script>
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>

@@ -5,10 +5,10 @@ import DOMPurify from 'dompurify';
 import { 
   FilePlus, Github, Menu, Search, FileText, PanelLeft, PanelRight, Split,
   Maximize, Minimize, Loader2, CheckCircle2, Save, History,
-  Upload, FolderPlus, Undo2, Redo2, MoreVertical,
+  Upload, FolderOpen, FolderPlus, Undo2, Redo2, MoreVertical,
   Briefcase, Cloud, CloudDownload, CloudOff, GitBranch
 } from 'lucide-react';
-import { Document, DocumentVersion, EditorMode, Theme, FileSystemItem, GitHubRepo } from './types';
+import { BrowserFileHandle, Document, DocumentVersion, EditorMode, Theme, FileSystemItem, GitHubRepo } from './types';
 import { MarkdownToolbar } from './components/MarkdownToolbar';
 import { MemoizedPreview as Preview } from './components/Preview';
 import { ExportMenu } from './components/ExportMenu';
@@ -120,11 +120,13 @@ const App: React.FC = () => {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const activeScroller = useRef<'editor' | 'preview' | null>(null);
   const mirrorRef = useRef<HTMLDivElement | null>(null);
+  const localFileHandlesRef = useRef<Map<string, BrowserFileHandle>>(new Map());
   
   const activeDoc = items.find(item => item.id === activeDocId && item.type === 'document') as Document | undefined;
   const isMarkdown = activeDoc ? /\.(md|markdown|txt)$/i.test(activeDoc.name) : false;
   const isIdeFile = activeDoc ? /\.(json|lkml)$/i.test(activeDoc.name) : false;
   const isSyncing = git.isPushing || git.isPulling || github.isSyncingRepo;
+  const canUseNativeFilePicker = typeof window !== 'undefined' && 'showOpenFilePicker' in window && 'showSaveFilePicker' in window;
 
   useEffect(() => { github.handleRedirect(); }, []);
   useThemeEffect(theme);
@@ -157,12 +159,59 @@ const App: React.FC = () => {
     setSuggestionPopup(null);
   }, [activeDocId, activeDoc?.content]);
 
-  const handleSaveToDevice = useCallback(() => { 
+  const handleSaveToDevice = useCallback(async () => { 
     if (!activeDoc) return; 
-    const fileName = activeDoc.name.endsWith('.md') ? activeDoc.name : `${activeDoc.name.replace(/\.[^/.]+$/, "")}.md`;
-    downloadFile(localContent, fileName, 'text/markdown');
-    showToast('Document saved!'); 
-  }, [activeDoc, localContent]);
+
+    const fallbackDownload = () => {
+      const fileName = activeDoc.name.endsWith('.md') ? activeDoc.name : `${activeDoc.name.replace(/\.[^/.]+$/, "")}.md`;
+      downloadFile(localContent, fileName, 'text/markdown');
+      showToast('Document downloaded.');
+    };
+
+    try {
+      const existingHandle = localFileHandlesRef.current.get(activeDoc.id);
+
+      if (existingHandle) {
+        const writable = await existingHandle.createWritable();
+        await writable.write(localContent);
+        await writable.close();
+        showToast(`Saved to ${existingHandle.name}`);
+        return;
+      }
+
+      if (canUseNativeFilePicker) {
+        const handle = await window.showSaveFilePicker!({
+          suggestedName: activeDoc.name || 'Untitled.md',
+          types: [{
+            description: 'Markdown and text files',
+            accept: {
+              'text/markdown': ['.md', '.markdown'],
+              'text/plain': ['.txt'],
+              'application/json': ['.json']
+            }
+          }]
+        });
+
+        const writable = await handle.createWritable();
+        await writable.write(localContent);
+        await writable.close();
+        localFileHandlesRef.current.set(activeDoc.id, handle);
+
+        if (handle.name && handle.name !== activeDoc.name) {
+          renameItem(activeDoc.id, handle.name);
+        }
+
+        showToast(`Saved to ${handle.name}`);
+        return;
+      }
+
+      fallbackDownload();
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
+      console.error('Save to device failed:', error);
+      fallbackDownload();
+    }
+  }, [activeDoc, canUseNativeFilePicker, localContent, renameItem]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -326,6 +375,38 @@ const App: React.FC = () => {
       }; 
       reader.readAsText(file); 
       e.target.value = ''; 
+  };
+
+  const handleOpenFromDevice = async () => {
+    if (!canUseNativeFilePicker) {
+      uploadInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const [handle] = await window.showOpenFilePicker!({
+        multiple: false,
+        types: [{
+          description: 'Supported text files',
+          accept: {
+            'text/markdown': ['.md', '.markdown'],
+            'text/plain': ['.txt'],
+            'application/json': ['.json'],
+            'text/plain+lookml': ['.lkml']
+          }
+        }]
+      });
+
+      const file = await handle.getFile();
+      const content = await file.text();
+      const docId = importFile(file.name, content);
+      localFileHandlesRef.current.set(docId, handle);
+      showToast(`Opened ${file.name}`);
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
+      console.error('Open from device failed:', error);
+      showToast('Could not open file from device.');
+    }
   };
   
   const getBaseFileName = (fileName: string) => fileName.replace(/\.[^/.]+$/, "");
@@ -493,7 +574,7 @@ const App: React.FC = () => {
                     <a href="https://github.com/google/labs-prototypes" target="_blank" rel="noopener noreferrer" className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title="GitHub"><Github size={18} /></a>
                     <ThemeSwitcher theme={theme} setTheme={setTheme} /><ExportMenu onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF} />
                     <input type="file" ref={uploadInputRef} onChange={handleFileUpload} accept=".md,.markdown,.txt,.json,.lkml" className="hidden" />
-                    <button onClick={() => uploadInputRef.current?.click()} className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title="Upload"><Upload size={18} /></button>
+                    <button onClick={handleOpenFromDevice} className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title={canUseNativeFilePicker ? 'Open from device' : 'Upload from device'}>{canUseNativeFilePicker ? <FolderOpen size={18} /> : <Upload size={18} />}</button>
                     
                     {drive.isAuthenticated && drive.user ? (
                         <div className="flex items-center justify-center p-2 rounded-lg" title={`Connected to Drive as ${drive.user.name} (${drive.user.email})`}>
@@ -565,7 +646,7 @@ const App: React.FC = () => {
         </footer>
       </main>
       {!isFocusMode && (<> {isGitHubSyncPanelOpen && <Suspense fallback={null}><GitHubSyncPanel onClose={() => setIsGitHubSyncPanelOpen(false)} getRepos={github.getRepos} onSyncRepo={handleSyncRepo} /></Suspense>} {isHistoryPanelOpen && <Suspense fallback={<div className="fixed right-0 top-0 h-full w-96 bg-background border-l border-border-color z-50 flex items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>}><div onClick={() => setIsHistoryPanelOpen(false)} className="fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-300"></div><VersionHistoryPanel doc={activeDoc} onClose={() => setIsHistoryPanelOpen(false)} onRestore={handleRestoreVersion} /></Suspense>} </>)}
-      {isMoreMenuOpen && (<> <div onClick={() => setIsMoreMenuOpen(false)} className="fixed inset-0 bg-black/60 z-30 lg:hidden animate-in fade-in-20 duration-300"></div> <div className="fixed bottom-0 left-0 right-0 bg-background-secondary rounded-t-2xl p-4 z-40 lg:hidden animate-in slide-in-from-bottom-5 duration-300"> <div className="w-10 h-1.5 bg-border-color rounded-full mx-auto mb-4"></div> <div className="grid grid-cols-4 gap-3 text-center"> <MoreMenuAction icon={Search} label="Find" action={createMenuAction(() => setFindState(p => ({ ...p, isOpen: true })))} /> <MoreMenuAction icon={Undo2} label="Undo" action={createMenuAction(handleUndo)} /> <MoreMenuAction icon={Redo2} label="Redo" action={createMenuAction(handleRedo)} /> <MoreMenuAction icon={History} label="History" action={createMenuAction(() => setIsHistoryPanelOpen(true))} /> <MoreMenuAction icon={Save} label="Save" action={createMenuAction(handleSaveToDevice)} /> <MoreMenuAction icon={Cloud} label="Drive" action={createMenuAction(handleSaveToDrive)} /> <div className="flex flex-col items-center justify-center"><ExportMenu direction="up" onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Export</span></div> <div className="flex flex-col items-center justify-center"><ThemeSwitcher direction="up" theme={theme} setTheme={setTheme}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Theme</span></div> <MoreMenuAction icon={Upload} label="Upload" action={createMenuAction(() => uploadInputRef.current?.click())} /> <MoreMenuAction icon={FilePlus} label="New Doc" action={createMenuAction(() => createItem('document'))} /> <MoreMenuAction icon={FolderPlus} label="New Folder" action={createMenuAction(() => createItem('folder'))} /> <a href="https://github.com/google/labs-prototypes" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center space-y-1.5 p-3 bg-background-tertiary hover:bg-accent/20 rounded-xl transition-colors font-medium text-xs text-text-secondary hover:text-text-primary"><Github size={22} /><span>GitHub</span></a> </div> </div> </>)}
+      {isMoreMenuOpen && (<> <div onClick={() => setIsMoreMenuOpen(false)} className="fixed inset-0 bg-black/60 z-30 lg:hidden animate-in fade-in-20 duration-300"></div> <div className="fixed bottom-0 left-0 right-0 bg-background-secondary rounded-t-2xl p-4 z-40 lg:hidden animate-in slide-in-from-bottom-5 duration-300"> <div className="w-10 h-1.5 bg-border-color rounded-full mx-auto mb-4"></div> <div className="grid grid-cols-4 gap-3 text-center"> <MoreMenuAction icon={Search} label="Find" action={createMenuAction(() => setFindState(p => ({ ...p, isOpen: true })))} /> <MoreMenuAction icon={Undo2} label="Undo" action={createMenuAction(handleUndo)} /> <MoreMenuAction icon={Redo2} label="Redo" action={createMenuAction(handleRedo)} /> <MoreMenuAction icon={History} label="History" action={createMenuAction(() => setIsHistoryPanelOpen(true))} /> <MoreMenuAction icon={Save} label="Save" action={createMenuAction(handleSaveToDevice)} /> <MoreMenuAction icon={Cloud} label="Drive" action={createMenuAction(handleSaveToDrive)} /> <div className="flex flex-col items-center justify-center"><ExportMenu direction="up" onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Export</span></div> <div className="flex flex-col items-center justify-center"><ThemeSwitcher direction="up" theme={theme} setTheme={setTheme}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Theme</span></div> <MoreMenuAction icon={canUseNativeFilePicker ? FolderOpen : Upload} label={canUseNativeFilePicker ? 'Open' : 'Upload'} action={createMenuAction(handleOpenFromDevice)} /> <MoreMenuAction icon={FilePlus} label="New Doc" action={createMenuAction(() => createItem('document'))} /> <MoreMenuAction icon={FolderPlus} label="New Folder" action={createMenuAction(() => createItem('folder'))} /> <a href="https://github.com/google/labs-prototypes" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center space-y-1.5 p-3 bg-background-tertiary hover:bg-accent/20 rounded-xl transition-colors font-medium text-xs text-text-secondary hover:text-text-primary"><Github size={22} /><span>GitHub</span></a> </div> </div> </>)}
       {toast.visible && <div className="fixed bottom-20 lg:bottom-5 left-1/2 -translate-x-1/2 bg-background-secondary text-text-primary px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-300">{toast.message}</div>}
       {isFocusMode && <button onClick={() => setIsFocusMode(false)} className="fixed top-4 right-4 z-50 p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background-tertiary shadow-lg" title="Exit Focus Mode"><Minimize size={20} /></button>}
       {isSyncing && <Suspense fallback={null}><SyncingLoader /></Suspense>}
