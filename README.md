@@ -1,4 +1,3 @@
-
 # Markdown Redactor 2.0
 
 A high-performance Markdown editor built with React.
