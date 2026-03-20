@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  GitBranch, Check, Plus, Minus, RotateCcw, UploadCloud, DownloadCloud, Play, FileText, Github
+  GitBranch, Plus, Minus, UploadCloud, DownloadCloud, FileText, Github, X
 } from 'lucide-react';
 import { useGit } from '../hooks/useGit';
 import { GitHubUser } from '../types';
@@ -9,9 +9,10 @@ import { GitHubUser } from '../types';
 interface GitPanelProps {
   git: ReturnType<typeof useGit>;
   githubUser: GitHubUser | null;
+  onClose?: () => void;
 }
 
-export const GitPanel: React.FC<GitPanelProps> = ({ git, githubUser }) => {
+export const GitPanel: React.FC<GitPanelProps> = ({ git, githubUser, onClose }) => {
   const [commitMessage, setCommitMessage] = useState('');
 
   // Auto-fill specific message for the new branch
@@ -19,7 +20,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ git, githubUser }) => {
     if (git.isInitialized && git.commits.length === 0 && !commitMessage) {
         setCommitMessage('Initial commit to google-ai-pro');
     }
-  }, [git.isInitialized, git.commits.length]);
+  }, [git.isInitialized, git.commits.length, commitMessage]);
 
   if (!git.isInitialized) {
     return (
@@ -61,9 +62,14 @@ export const GitPanel: React.FC<GitPanelProps> = ({ git, githubUser }) => {
 
   return (
     <div className="flex flex-col h-full bg-background-secondary">
-      <div className="p-4 border-b border-border-color flex items-center justify-between">
+      <div className="p-4 border-b border-border-color flex items-center justify-between gap-2">
          <span className="font-bold text-sm uppercase tracking-wider text-text-secondary">Source Control</span>
-         <div className="flex space-x-1">
+         <div className="flex items-center space-x-1">
+            {onClose && (
+                <button onClick={onClose} title="Close sidebar" className="p-1.5 hover:bg-background-tertiary rounded text-text-secondary lg:hidden" aria-label="Close sidebar">
+                    <X size={16} />
+                </button>
+            )}
             {git.activeRepo && (
                 <>
                     <button onClick={handlePull} title="Pull" disabled={git.isPulling} className="p-1.5 hover:bg-background-tertiary rounded text-text-secondary">

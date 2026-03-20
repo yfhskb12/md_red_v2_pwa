@@ -3,7 +3,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { 
   FileText, FileJson, Database, Folder as FolderIcon, Briefcase, 
   ChevronRight, Trash2, Search, X, FolderPlus, FilePlus, Plus, Edit2, 
-  GitBranch, Files, Settings, MoreHorizontal
+  GitBranch, Files, MoreHorizontal, PanelLeftClose
 } from 'lucide-react';
 import { FileSystemItem, Document, Folder, GitHubUser, GoogleUser, GitFileStatus } from '../types';
 import { GitHubConnect } from './GitHubConnect';
@@ -286,7 +286,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
                 {git.changedFiles.length > 0 && <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-accent rounded-full border-2 border-background"></span>}
              </button>
              <div className="flex-1"></div>
-             <button className="p-3 text-text-muted hover:text-text-primary rounded-lg transition-colors"><Settings size={24} /></button>
+             <button onClick={onClose} title="Close sidebar" className="p-3 text-text-muted hover:text-text-primary rounded-lg transition-colors lg:hidden"><PanelLeftClose size={24} /></button>
           </div>
 
           {/* Sidebar Content */}
@@ -349,7 +349,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
                     </div>
                 </>
             ) : (
-                <GitPanel git={git} githubUser={githubUser} />
+                <GitPanel git={git} githubUser={githubUser} onClose={onClose} />
             )}
           </div>
       </aside>

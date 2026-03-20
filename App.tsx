@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useCallback, useMemo } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { 
@@ -105,6 +105,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<{ past: string[]; future: string[] }>({ past: [], future: [] });
   const [findState, setFindState] = useState<FindState>({ isOpen: false, searchTerm: '', replaceTerm: '', matches: [], currentIndex: -1, caseSensitive: false, wholeWord: false });
   const [isCoverScreen, setIsCoverScreen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   
   // Editor Content State
   const [localContent, setLocalContent] = useState('');
@@ -136,11 +137,21 @@ const App: React.FC = () => {
     const handleScreenChange = () => {
         const isSmall = window.innerWidth < 1024;
         const isCover = window.matchMedia('(max-width: 450px)').matches;
+
+        setIsMobileViewport(isSmall);
         setIsCoverScreen(isCover);
-        setIsSidebarOpen(!isSmall);
-        if (isCover) setMode('preview');
-        else if (isSmall) setMode('edit');
-        else setMode('split');
+        setIsSidebarOpen(isSmall ? false : true);
+        setMode((currentMode) => {
+          if (isSmall) {
+            return currentMode === 'preview' ? 'preview' : 'edit';
+          }
+
+          return currentMode === 'edit' || currentMode === 'preview' || currentMode === 'split'
+            ? currentMode === 'edit' || currentMode === 'preview'
+              ? 'split'
+              : currentMode
+            : 'split';
+        });
     };
     handleScreenChange();
     window.addEventListener('resize', handleScreenChange);
@@ -338,6 +349,23 @@ const App: React.FC = () => {
       showToast("Failed to sync repository.");
     }
   };
+
+  const handleGitHubAction = useCallback(() => {
+    if (github.user) {
+      setIsGitHubSyncPanelOpen(true);
+      return;
+    }
+
+    github.login();
+  }, [github]);
+
+  const closeSidebarOnMobile = useCallback(() => {
+    if (isMobileViewport) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobileViewport]);
+
+  const mobileGitHubLabel = useMemo(() => github.user ? 'Sync GitHub' : 'Connect GitHub', [github.user]);
   
   const handleRestoreVersion = (version: DocumentVersion) => { 
       if (!activeDocId) return; 
@@ -558,7 +586,7 @@ const App: React.FC = () => {
   return (
     <div className={`flex h-screen bg-background text-text-primary overflow-hidden ${isCoverScreen ? 'is-cover-screen' : ''}`}>
       <Suspense fallback={null}><CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} items={items} onSelectDoc={(id) => { setActiveDocId(id); setActiveParentId(null); }} onCreateDoc={() => createItem('document')} onCreateFolder={() => createItem('folder')} onCreateJson={() => createItem('document', false, 'data.json')} onCreateLookML={() => createItem('document', false, 'model.lkml')} onThemeChange={setTheme} onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF}/></Suspense>
-      {!isFocusMode && <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} items={structureItems} folderMap={folderMap} activeDocId={activeDocId} activeParentId={activeParentId} expandedFolders={expandedFolders} onToggleFolder={toggleFolder} onSelectDoc={(id, pid) => { setActiveDocId(id); setActiveParentId(pid); }} onSelectFolder={(id) => { toggleFolder(id); setActiveParentId(id); }} onRename={renameItem} onDelete={deleteItem} onMove={moveItem} onCreateItem={createItem} searchQuery={searchQuery} setSearchQuery={setSearchQuery} githubUser={github.user} onGitHubLogin={github.login} onGitHubLogout={github.logout} onGitHubSync={() => setIsGitHubSyncPanelOpen(true)} driveUser={drive.user} onDriveLogin={drive.signIn} onDriveLogout={drive.signOut} git={git} />}
+      {!isFocusMode && <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} items={structureItems} folderMap={folderMap} activeDocId={activeDocId} activeParentId={activeParentId} expandedFolders={expandedFolders} onToggleFolder={toggleFolder} onSelectDoc={(id, pid) => { setActiveDocId(id); setActiveParentId(pid); closeSidebarOnMobile(); }} onSelectFolder={(id) => { toggleFolder(id); setActiveParentId(id); }} onRename={renameItem} onDelete={deleteItem} onMove={moveItem} onCreateItem={createItem} searchQuery={searchQuery} setSearchQuery={setSearchQuery} githubUser={github.user} onGitHubLogin={github.login} onGitHubLogout={github.logout} onGitHubSync={handleGitHubAction} driveUser={drive.user} onDriveLogin={drive.signIn} onDriveLogout={drive.signOut} git={git} />}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {headerVisible && (
             <header className="h-14 border-b border-border-color flex-shrink-0 flex items-center justify-between px-4 bg-background z-10 hidden lg:flex">
@@ -571,7 +599,7 @@ const App: React.FC = () => {
                 <div className="flex items-center space-x-1">
                     <button onClick={() => setIsFocusMode(true)} className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title="Focus Mode"><Maximize size={18} /></button>
                     <button onClick={() => setIsHistoryPanelOpen(true)} disabled={!activeDoc} className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg disabled:opacity-50" title="Version History"><History size={18} /></button>
-                    <a href="https://github.com/google/labs-prototypes" target="_blank" rel="noopener noreferrer" className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title="GitHub"><Github size={18} /></a>
+                    <button onClick={handleGitHubAction} className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title={github.user ? "Sync GitHub" : "Connect GitHub"}><Github size={18} /></button>
                     <ThemeSwitcher theme={theme} setTheme={setTheme} /><ExportMenu onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF} />
                     <input type="file" ref={uploadInputRef} onChange={handleFileUpload} accept=".md,.markdown,.txt,.json,.lkml" className="hidden" />
                     <button onClick={handleOpenFromDevice} className="p-2 text-text-secondary hover:text-accent hover:bg-accent-soft-bg rounded-lg" title={canUseNativeFilePicker ? 'Open from device' : 'Upload from device'}>{canUseNativeFilePicker ? <FolderOpen size={18} /> : <Upload size={18} />}</button>
@@ -639,14 +667,14 @@ const App: React.FC = () => {
         <footer className="fixed bottom-0 left-0 right-0 h-16 bg-background-secondary border-t border-border-color flex lg:hidden items-center justify-between px-4 z-20">
           <button onClick={() => setIsSidebarOpen(true)} className="p-3 hover:bg-background-tertiary rounded-full text-text-secondary" aria-label="Open sidebar"><Menu size={22} /></button>
           <div className="flex items-center bg-background rounded-full p-1 font-semibold text-sm">
-            <button onClick={() => setMode('edit')} className={`px-5 py-2 rounded-full transition-colors ${mode === 'edit' ? 'bg-accent text-accent-text' : 'text-text-secondary'}`} disabled={isCoverScreen}>Edit</button>
+            <button onClick={() => setMode('edit')} className={`px-5 py-2 rounded-full transition-colors ${mode === 'edit' ? 'bg-accent text-accent-text' : 'text-text-secondary'}`}>Edit</button>
             <button onClick={() => setMode('preview')} className={`px-5 py-2 rounded-full transition-colors ${mode === 'preview' ? 'bg-accent text-accent-text' : 'text-text-secondary'}`}>Preview</button>
           </div>
           <button onClick={() => setIsMoreMenuOpen(true)} className="p-3 hover:bg-background-tertiary rounded-full text-text-secondary" aria-label="More actions"><MoreVertical size={22} /></button>
         </footer>
       </main>
       {!isFocusMode && (<> {isGitHubSyncPanelOpen && <Suspense fallback={null}><GitHubSyncPanel onClose={() => setIsGitHubSyncPanelOpen(false)} getRepos={github.getRepos} onSyncRepo={handleSyncRepo} /></Suspense>} {isHistoryPanelOpen && <Suspense fallback={<div className="fixed right-0 top-0 h-full w-96 bg-background border-l border-border-color z-50 flex items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>}><div onClick={() => setIsHistoryPanelOpen(false)} className="fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-300"></div><VersionHistoryPanel doc={activeDoc} onClose={() => setIsHistoryPanelOpen(false)} onRestore={handleRestoreVersion} /></Suspense>} </>)}
-      {isMoreMenuOpen && (<> <div onClick={() => setIsMoreMenuOpen(false)} className="fixed inset-0 bg-black/60 z-30 lg:hidden animate-in fade-in-20 duration-300"></div> <div className="fixed bottom-0 left-0 right-0 bg-background-secondary rounded-t-2xl p-4 z-40 lg:hidden animate-in slide-in-from-bottom-5 duration-300"> <div className="w-10 h-1.5 bg-border-color rounded-full mx-auto mb-4"></div> <div className="grid grid-cols-4 gap-3 text-center"> <MoreMenuAction icon={Search} label="Find" action={createMenuAction(() => setFindState(p => ({ ...p, isOpen: true })))} /> <MoreMenuAction icon={Undo2} label="Undo" action={createMenuAction(handleUndo)} /> <MoreMenuAction icon={Redo2} label="Redo" action={createMenuAction(handleRedo)} /> <MoreMenuAction icon={History} label="History" action={createMenuAction(() => setIsHistoryPanelOpen(true))} /> <MoreMenuAction icon={Save} label="Save" action={createMenuAction(handleSaveToDevice)} /> <MoreMenuAction icon={Cloud} label="Drive" action={createMenuAction(handleSaveToDrive)} /> <div className="flex flex-col items-center justify-center"><ExportMenu direction="up" onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Export</span></div> <div className="flex flex-col items-center justify-center"><ThemeSwitcher direction="up" theme={theme} setTheme={setTheme}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Theme</span></div> <MoreMenuAction icon={canUseNativeFilePicker ? FolderOpen : Upload} label={canUseNativeFilePicker ? 'Open' : 'Upload'} action={createMenuAction(handleOpenFromDevice)} /> <MoreMenuAction icon={FilePlus} label="New Doc" action={createMenuAction(() => createItem('document'))} /> <MoreMenuAction icon={FolderPlus} label="New Folder" action={createMenuAction(() => createItem('folder'))} /> <a href="https://github.com/google/labs-prototypes" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center space-y-1.5 p-3 bg-background-tertiary hover:bg-accent/20 rounded-xl transition-colors font-medium text-xs text-text-secondary hover:text-text-primary"><Github size={22} /><span>GitHub</span></a> </div> </div> </>)}
+      {isMoreMenuOpen && (<> <div onClick={() => setIsMoreMenuOpen(false)} className="fixed inset-0 bg-black/60 z-30 lg:hidden animate-in fade-in-20 duration-300"></div> <div className="fixed bottom-0 left-0 right-0 bg-background-secondary rounded-t-2xl p-4 z-40 lg:hidden animate-in slide-in-from-bottom-5 duration-300"> <div className="w-10 h-1.5 bg-border-color rounded-full mx-auto mb-4"></div> <div className="grid grid-cols-4 gap-3 text-center"> <MoreMenuAction icon={Search} label="Find" action={createMenuAction(() => setFindState(p => ({ ...p, isOpen: true })))} /> <MoreMenuAction icon={Undo2} label="Undo" action={createMenuAction(handleUndo)} /> <MoreMenuAction icon={Redo2} label="Redo" action={createMenuAction(handleRedo)} /> <MoreMenuAction icon={History} label="History" action={createMenuAction(() => setIsHistoryPanelOpen(true))} /> <MoreMenuAction icon={Save} label="Save" action={createMenuAction(handleSaveToDevice)} /> <MoreMenuAction icon={Cloud} label="Drive" action={createMenuAction(handleSaveToDrive)} /> <div className="flex flex-col items-center justify-center"><ExportMenu direction="up" onExportMD={exportAsMarkdown} onExportHTML={exportAsHTML} onExportRTF={exportAsRTF} onPrintPDF={printToPDF}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Export</span></div> <div className="flex flex-col items-center justify-center"><ThemeSwitcher direction="up" theme={theme} setTheme={setTheme}/> <span className="text-xs mt-1.5 font-medium text-text-secondary">Theme</span></div> <MoreMenuAction icon={canUseNativeFilePicker ? FolderOpen : Upload} label={canUseNativeFilePicker ? 'Open' : 'Upload'} action={createMenuAction(handleOpenFromDevice)} /> <MoreMenuAction icon={FilePlus} label="New Doc" action={createMenuAction(() => createItem('document'))} /> <MoreMenuAction icon={FolderPlus} label="New Folder" action={createMenuAction(() => createItem('folder'))} /> <MoreMenuAction icon={Github} label={mobileGitHubLabel} action={createMenuAction(handleGitHubAction)} /> </div> </div> </>)}
       {toast.visible && <div className="fixed bottom-20 lg:bottom-5 left-1/2 -translate-x-1/2 bg-background-secondary text-text-primary px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-300">{toast.message}</div>}
       {isFocusMode && <button onClick={() => setIsFocusMode(false)} className="fixed top-4 right-4 z-50 p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background-tertiary shadow-lg" title="Exit Focus Mode"><Minimize size={20} /></button>}
       {isSyncing && <Suspense fallback={null}><SyncingLoader /></Suspense>}

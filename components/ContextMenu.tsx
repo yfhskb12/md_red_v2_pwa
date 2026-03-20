@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Edit2, Trash2, FilePlus, FolderPlus, Copy } from 'lucide-react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { Edit2, Trash2, FilePlus, FolderPlus } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
 interface ContextMenuProps {
@@ -17,16 +17,43 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   position, onClose, onRename, onDelete, onNewFile, onNewFolder, itemType 
 }) => {
   const ref = useClickOutside<HTMLDivElement>(onClose);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState(position);
 
-  // Adjust position to prevent overflow (basic implementation)
+  useLayoutEffect(() => {
+    const menu = measureRef.current;
+    if (!menu) {
+      setMenuPosition(position);
+      return;
+    }
+
+    const padding = 12;
+    const { innerWidth, innerHeight } = window;
+    const { width, height } = menu.getBoundingClientRect();
+    const maxLeft = Math.max(padding, innerWidth - width - padding);
+    const maxTop = Math.max(padding, innerHeight - height - padding);
+
+    setMenuPosition({
+      x: Math.min(Math.max(position.x, padding), maxLeft),
+      y: Math.min(Math.max(position.y, padding), maxTop),
+    });
+  }, [position, itemType]);
+
   const style = {
-    top: position.y,
-    left: position.x,
+    top: menuPosition.y,
+    left: menuPosition.x,
   };
 
   return (
     <div 
-      ref={ref}
+      ref={(node) => {
+        measureRef.current = node;
+        if (typeof ref === 'function') {
+          ref(node);
+        } else if (ref) {
+          ref.current = node;
+        }
+      }}
       style={style}
       className="fixed z-[100] w-48 bg-background-secondary border border-border-color rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 py-1"
       onClick={(e) => e.stopPropagation()}
